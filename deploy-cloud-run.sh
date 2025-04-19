@@ -3,7 +3,7 @@
 # Deployment script for Masa API MCP to Google Cloud Run
 
 # Configuration
-PROJECT_ID=${PROJECT_ID:-"playright-masa-web-scrapper"}
+PROJECT_ID=$(gcloud config get-value project)
 REGION=${REGION:-"us-central1"}
 SERVICE_NAME=${SERVICE_NAME:-"masa-mcp"}
 MEMORY=${MEMORY:-"1Gi"}
