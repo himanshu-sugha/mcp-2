@@ -1,123 +1,106 @@
-# Masa API Client
+# Masa API Client for Model Context Protocol
 
-A JavaScript client for interacting with the Masa Data API, specifically focusing on the Twitter search functionality.
+This package provides a Model Context Protocol (MCP) client for interacting with the Masa Data API, focusing on social media data retrieval and analysis.
 
 ## Installation
 
 ```bash
-npm install
+npm install @modelcontextprotocol/masa-api-client
 ```
 
 ## Usage
 
-### As a Library
+### Basic Setup
 
 ```javascript
-const MasaApiClient = require('./masaApiClient');
+const MasaApiClient = require('@modelcontextprotocol/masa-api-client');
 
-// Initialize the client with your API key
-const apiKey = 'your-api-key';
-const masaClient = new MasaApiClient(apiKey);
+// Create a client instance
+const client = new MasaApiClient({
+  apiKey: process.env.MASA_API_KEY, // Your Masa API key
+  timeoutMs: 10000 // Optional timeout in milliseconds
+});
+```
 
-// Example 1: Complete search flow with automatic polling
+### Searching for Twitter Data
+
+```javascript
 async function searchTwitter() {
   try {
-    const results = await masaClient.performTwitterSearch('#AI trending', 50);
-    console.log('Search results:', results);
+    const results = await client.search('artificial intelligence', {
+      count: 10,
+      resultType: 'recent',
+      includeRetweets: false
+    });
+    
+    console.log(`Found ${results.results.length} tweets`);
+    console.log(results);
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Search failed:', error);
   }
 }
+```
 
-// Example 2: Manual step-by-step approach
-async function manualSearchTwitter() {
+### Express Server Integration
+
+```javascript
+const express = require('express');
+const app = express();
+const MasaApiClient = require('@modelcontextprotocol/masa-api-client');
+
+const client = new MasaApiClient({
+  apiKey: process.env.MASA_API_KEY
+});
+
+app.get('/search', async (req, res) => {
   try {
-    // Step 1: Submit search job
-    const { uuid } = await masaClient.submitTwitterSearch('#AI trending', 50);
-    console.log('Job submitted with UUID:', uuid);
-    
-    // Step 2: Check job status (you might want to implement your own polling mechanism)
-    const statusResponse = await masaClient.checkJobStatus(uuid);
-    console.log('Job status:', statusResponse.status);
-    
-    // Step 3: Retrieve results when job is completed
-    if (statusResponse.status === 'done') {
-      const results = await masaClient.getSearchResults(uuid);
-      console.log('Search results:', results);
-    }
+    const { query, count } = req.query;
+    const results = await client.search(query, { count: parseInt(count) || 10 });
+    res.json(results);
   } catch (error) {
-    console.error('Error:', error.message);
+    res.status(500).json({ error: error.message });
   }
-}
+});
 
-// Run the examples
-searchTwitter();
-// or
-// manualSearchTwitter();
+app.listen(3000, () => {
+  console.log('Server running on port 3000');
+});
 ```
-
-### Run Example Script
-
-```bash
-npm run example
-```
-
-### Run Web Server
-
-The project includes a simple web server with a UI for making Twitter searches.
-
-```bash
-# Set your Masa API key as an environment variable (recommended)
-export MASA_API_KEY=your-api-key-here
-
-# Start the server
-npm run server
-```
-
-Then open your browser to [http://localhost:3000](http://localhost:3000) to access the web interface.
 
 ## API Reference
 
-### Constructor
+### `new MasaApiClient(config)`
 
-```javascript
-const client = new MasaApiClient(apiKey);
-```
+Creates a new instance of the Masa API client.
 
-### Methods
+- `config.apiKey` - Your Masa API key
+- `config.baseUrl` - (Optional) Override the default API endpoint
+- `config.timeoutMs` - (Optional) Request timeout in milliseconds
 
-#### submitTwitterSearch(query, maxResults)
-Submits a Twitter search job to the Masa API.
+### `client.search(query, options)`
 
-- `query`: String - The search query (supports Twitter search operators)
-- `maxResults`: Number - Maximum number of results to return (default: 100, max: 100)
-- Returns: Promise with job UUID and any errors
+Search for tweets matching the query.
 
-#### checkJobStatus(jobUuid)
-Checks the status of a search job.
+- `query` - The search query string
+- `options.count` - Number of results to return (default: 10)
+- `options.includeRetweets` - Whether to include retweets (default: false)
+- `options.resultType` - Type of results: 'mixed', 'recent' or 'popular' (default: 'recent')
+- `options.lang` - Filter by language (e.g., 'en' for English)
+- `options.since` - Return results after this date (format: YYYY-MM-DD)
+- `options.until` - Return results before this date (format: YYYY-MM-DD)
 
-- `jobUuid`: String - The UUID of the job to check
-- Returns: Promise with job status and any errors
+Returns a `SearchResponse` object containing the search results.
 
-#### getSearchResults(jobUuid)
-Retrieves the results of a completed search job.
+## MCP Integration
 
-- `jobUuid`: String - The UUID of the job to retrieve results for
-- Returns: Promise with array of tweet results
+This package follows the Model Context Protocol standards:
 
-#### performTwitterSearch(query, maxResults, pollingInterval, timeout)
-Performs a complete Twitter search operation (submit, wait, retrieve).
+1. Uses the MCP SDK for communication
+2. Provides TypeScript definitions
+3. Follows the MCP naming convention
+4. Has proper error handling
+5. Provides clear documentation
 
-- `query`: String - The search query
-- `maxResults`: Number - Maximum number of results (default: 100)
-- `pollingInterval`: Number - Milliseconds to wait between status checks (default: 2000)
-- `timeout`: Number - Maximum milliseconds to wait before timing out (default: 60000)
-- Returns: Promise with array of tweet results
+## License
 
-## Rate Limiting
-
-The Masa API is currently rate-limited to 3 requests per second per API key.
-
-## API Documentation
-
-For more details, refer to the [official Masa API documentation](https://developers.masa.ai/docs/index-API/masa-api-search). 
+MIT 
