@@ -1,105 +1,191 @@
-# Masa API Client for Model Context Protocol
+# Masa API Client MCP
 
-This package provides a Model Context Protocol (MCP) client for interacting with the Masa Data API, focusing on social media data retrieval and analysis.
+A Model Context Protocol (MCP) implementation for the Masa API, allowing LLMs to search Twitter, sort tweets, and extract information from social media content.
+
+## Features
+
+- Twitter search via MCP interface
+- Tweet sorting by engagement
+- Search term extraction from tweets
+- Web page content scraping with Playwright
+- Cloud-ready deployment with Docker
 
 ## Installation
 
 ```bash
-npm install @modelcontextprotocol/masa-api-client
+# Clone the repository
+git clone https://github.com/yourusername/masa-api-client-mcp.git
+cd masa-api-client-mcp
+
+# Install dependencies
+npm install
+```
+
+## Configuration
+
+Create a `.env` file in the root directory with the following variables:
+
+```
+PORT=3002
+DEBUG=true
+NODE_ENV=development
 ```
 
 ## Usage
 
-### Basic Setup
+### Starting the Server
 
-```javascript
-const MasaApiClient = require('@modelcontextprotocol/masa-api-client');
+```bash
+# Start the development server
+npm run dev
 
-// Create a client instance
-const client = new MasaApiClient({
-  apiKey: process.env.MASA_API_KEY, // Your Masa API key
-  timeoutMs: 10000 // Optional timeout in milliseconds
-});
+# Start the production server
+npm start
 ```
 
-### Searching for Twitter Data
+### MCP Client Usage
 
 ```javascript
-async function searchTwitter() {
-  try {
-    const results = await client.search('artificial intelligence', {
-      count: 10,
-      resultType: 'recent',
-      includeRetweets: false
-    });
-    
-    console.log(`Found ${results.results.length} tweets`);
-    console.log(results);
-  } catch (error) {
-    console.error('Search failed:', error);
+const { MasaMcpClient } = require('./mcp-client');
+
+async function example() {
+  // Initialize the client
+  const client = new MasaMcpClient('http://localhost:3002');
+  
+  // Search for tweets
+  const tweets = await client.searchTwitter('artificial intelligence news', 3);
+  console.log(`Found ${tweets.length} tweets`);
+  
+  // Sort tweets by engagement
+  const sortedTweets = await client.sortTweetsByEngagement(tweets);
+  console.log(`Sorted ${sortedTweets.length} tweets by engagement`);
+  
+  // Extract search term from tweet
+  if (tweets.length > 0) {
+    const searchTerm = await client.extractSearchTerm(tweets[0].text);
+    console.log(`Extracted search term: ${searchTerm}`);
   }
 }
+
+example();
 ```
 
-### Express Server Integration
+## API Endpoints
 
-```javascript
-const express = require('express');
-const app = express();
-const MasaApiClient = require('@modelcontextprotocol/masa-api-client');
+### MCP Endpoint
 
-const client = new MasaApiClient({
-  apiKey: process.env.MASA_API_KEY
-});
+- **URL**: `/mcp`
+- **Method**: `POST`
+- **Description**: Main MCP endpoint for tool calls
 
-app.get('/search', async (req, res) => {
-  try {
-    const { query, count } = req.query;
-    const results = await client.search(query, { count: parseInt(count) || 10 });
-    res.json(results);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+### Twitter Search
+
+- **URL**: `/api/masa/enhance`
+- **Method**: `POST`
+- **Body**:
+  ```json
+  {
+    "query": "artificial intelligence news",
+    "max_results": 3
   }
-});
+  ```
+- **Response**: Array of tweet objects
 
-app.listen(3000, () => {
-  console.log('Server running on port 3000');
-});
+### Health Check
+
+- **URL**: `/health`
+- **Method**: `GET`
+- **Response**: Server status information
+
+## MCP Tools
+
+The following tools are available through the MCP interface:
+
+### twitter_search
+
+Searches Twitter for tweets matching a query.
+
+**Parameters**:
+- `query` (string): The search query
+- `max_results` (number, optional): Maximum number of results to return
+
+**Returns**: Array of tweet objects
+
+### twitter_sort_by_engagement
+
+Sorts a list of tweets by engagement metrics.
+
+**Parameters**:
+- `tweets` (array): Array of tweet objects
+
+**Returns**: Sorted array of tweet objects
+
+### twitter_extract_search_term
+
+Extracts a search term from tweet text.
+
+**Parameters**:
+- `text` (string): The tweet text
+
+**Returns**: Extracted search term
+
+## Integration
+
+See [INTEGRATION.md](./INTEGRATION.md) for detailed instructions on integrating with:
+
+- Claude and other LLMs
+- VS Code
+- Direct API calls
+- MCP-compatible applications
+
+## Deployment
+
+### Local Development
+
+```bash
+npm run dev
 ```
 
-## API Reference
+### Docker
 
-### `new MasaApiClient(config)`
+```bash
+# Build the Docker image
+docker build -t masa-mcp .
 
-Creates a new instance of the Masa API client.
+# Run the container
+docker run -p 3002:3002 masa-mcp
+```
 
-- `config.apiKey` - Your Masa API key
-- `config.baseUrl` - (Optional) Override the default API endpoint
-- `config.timeoutMs` - (Optional) Request timeout in milliseconds
+### Google Cloud Run
 
-### `client.search(query, options)`
+Use the included deployment script:
 
-Search for tweets matching the query.
+```bash
+chmod +x deploy-cloud-run.sh
+./deploy-cloud-run.sh
+```
 
-- `query` - The search query string
-- `options.count` - Number of results to return (default: 10)
-- `options.includeRetweets` - Whether to include retweets (default: false)
-- `options.resultType` - Type of results: 'mixed', 'recent' or 'popular' (default: 'recent')
-- `options.lang` - Filter by language (e.g., 'en' for English)
-- `options.since` - Return results after this date (format: YYYY-MM-DD)
-- `options.until` - Return results before this date (format: YYYY-MM-DD)
+Or deploy manually:
 
-Returns a `SearchResponse` object containing the search results.
+```bash
+# Build and push Docker image
+docker build -t gcr.io/[PROJECT_ID]/masa-mcp .
+docker push gcr.io/[PROJECT_ID]/masa-mcp
 
-## MCP Integration
+# Deploy to Cloud Run
+gcloud run deploy masa-mcp \
+  --image gcr.io/[PROJECT_ID]/masa-mcp \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated
+```
 
-This package follows the Model Context Protocol standards:
+## Testing
 
-1. Uses the MCP SDK for communication
-2. Provides TypeScript definitions
-3. Follows the MCP naming convention
-4. Has proper error handling
-5. Provides clear documentation
+```bash
+# Run integration tests
+npm run test-mcp
+```
 
 ## License
 

@@ -4,10 +4,18 @@
   "description": "Model Context Protocol (MCP) client for interacting with the Masa Data API",
   "main": "masaApiClient.js",
   "types": "index.d.ts",
+  "type": "commonjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "example": "node example.js",
+    "test": "node test-mcp.js",
+    "test-mcp": "node test-mcp-only.js",
+    "test-api": "node test-api-only.js",
+    "test-search": "node test-searchTerm.js",
+    "test-all": "npm run test-mcp && npm run test-api && npm run test-search",
+    "example": "node mcp-client.js",
     "server": "node server.js",
+    "simple-server": "node simple-server.js",
+    "dev": "DEBUG=true node server.js",
+    "start": "NODE_ENV=production node server.js",
     "lint": "eslint .",
     "build": "tsc",
     "clean": "rm -rf lib"
@@ -27,7 +35,11 @@
     "@modelcontextprotocol/sdk": "^1.6.1",
     "axios": "^1.8.4",
     "dotenv": "^16.5.0",
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "zod": "^3.22.4"
+  },
+  "peerDependencies": {
+    "@modelcontextprotocol/sdk": "^1.6.1"
   },
   "repository": {
     "type": "git",

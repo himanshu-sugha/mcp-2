@@ -5,6 +5,7 @@
  */
 
 const axios = require('axios');
+const mcpWrapper = require('./utils/mcp/wrapper');
 
 class MasaApiClient {
   constructor(apiKey) {
@@ -15,7 +16,7 @@ class MasaApiClient {
     this.apiKey = apiKey;
     this.baseUrl = 'https://data.dev.masalabs.ai/api';
     this.headers = {
-      'Authorization': `Bearer ${this.apiKey}`,
+      'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json'
     };
     
@@ -29,6 +30,102 @@ class MasaApiClient {
     this.logError = (message, error = null) => {
       console.error(`[ERROR] ${message}`, error || '');
     };
+
+    // Initialize MCP tools asynchronously
+    this.tools = {}; // Placeholder until async initialization
+    this._initTools();
+  }
+
+  /**
+   * Initialize MCP tools asynchronously
+   * @private
+   */
+  async _initTools() {
+    try {
+      const z = await mcpWrapper.getZod();
+      
+      // Define tools with the async wrapper
+      this.tools = await mcpWrapper.defineTools({
+        twitter_search: {
+          description: "Search Twitter for tweets matching a query",
+          parameters: z.object({
+            query: z.string().describe("The search query using Twitter search syntax"),
+            max_results: z.number().optional().describe("Maximum number of results to return (default: 10)")
+          }),
+          handler: async ({ query, max_results = 10 }) => {
+            this.logInfo(`MCP Tool called: twitter_search for '${query}' with max_results ${max_results}`);
+            const results = await this.performTwitterSearch(query, max_results);
+            return results;
+          }
+        },
+        
+        twitter_sort_by_engagement: {
+          description: "Sort tweets by engagement metrics (likes, retweets, etc)",
+          parameters: z.object({
+            tweets: z.array(z.any()).describe("Array of tweet objects to sort")
+          }),
+          handler: async ({ tweets }) => {
+            this.logInfo(`MCP Tool called: twitter_sort_by_engagement for ${tweets.length} tweets`);
+            
+            return tweets.sort((a, b) => {
+              const metricsA = a.Metadata.public_metrics;
+              const metricsB = b.Metadata.public_metrics;
+              
+              const scoreA = (metricsA.RetweetCount * 2) + 
+                            metricsA.LikeCount + 
+                            (metricsA.QuoteCount * 1.5) + 
+                            metricsA.ReplyCount + 
+                            metricsA.BookmarkCount;
+              
+              const scoreB = (metricsB.RetweetCount * 2) + 
+                            metricsB.LikeCount + 
+                            (metricsB.QuoteCount * 1.5) + 
+                            metricsB.ReplyCount + 
+                            metricsB.BookmarkCount;
+              
+              return scoreB - scoreA;
+            });
+          }
+        },
+        
+        twitter_extract_search_term: {
+          description: "Extract a search term from a tweet for additional context gathering",
+          parameters: z.object({
+            tweet_content: z.string().describe("The content of the tweet to analyze")
+          }),
+          handler: async ({ tweet_content }) => {
+            this.logInfo(`MCP Tool called: twitter_extract_search_term for tweet`);
+            
+            try {
+              // Use the extraction API to determine a search term
+              const response = await axios.post(
+                'https://data.dev.masalabs.ai/api/v1/search/extraction',
+                { userInput: tweet_content },
+                { headers: this.headers }
+              );
+              
+              return {
+                searchTerm: response.data.searchTerm,
+                success: true
+              };
+            } catch (error) {
+              this.logError('Failed to extract search term', error);
+              return {
+                searchTerm: "",
+                success: false,
+                error: error.message
+              };
+            }
+          }
+        }
+      });
+      
+      this.logInfo('MCP tools initialized successfully');
+    } catch (error) {
+      this.logError('Failed to initialize MCP tools', error);
+      // Set up basic tools object to prevent errors
+      this.tools = {};
+    }
   }
 
   /**
@@ -39,7 +136,8 @@ class MasaApiClient {
    */
   async submitTwitterSearch(query, max_results = 100) {
     try {
-      const response = await axios.post(
+        this.logInfo(`Submitting Twitter search: query='${query}', max_results=${max_results}`);
+        const response = await axios.post(
         `${this.baseUrl}/v1/search/live/twitter`,
         {
           query,
@@ -47,9 +145,12 @@ class MasaApiClient {
         },
         { headers: this.headers }
       );
+
+      
       
       return response.data;
     } catch (error) {
+      this.logError("Error in submitTwitterSearch", error);
       throw this._handleError(error);
     }
   }
