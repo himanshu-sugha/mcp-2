@@ -1,23 +1,22 @@
 version: '3.8'
 
 services:
-  masa-mcp:
+  mcp-app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: masa-mcp
+    container_name: mcp-app
     restart: unless-stopped
     ports:
-      - "3002:3002"
+      - "8080:3002"
     environment:
       - PORT=3002
       - NODE_ENV=production
       - DEBUG=false
-      # These will be provided by the .env file
-      - MASA_API_KEY=${MASA_API_KEY:-}
-      - TOGETHER_API_KEY=${TOGETHER_API_KEY:-}
-      - TOGETHER_ENHANCEMENT=${TOGETHER_ENHANCEMENT:-FALSE}
-      - MASA_ENHANCEMENT=${MASA_ENHANCEMENT:-FALSE}
+      - MASA_API_KEY=M2KYV5QmDwPRAZ91OEKfCfHMTq5HaF8C61qgowSfFlYxI1Hf
+      - TOGETHER_API_KEY=RpqsYn9xUEg4sZaXcgp7Gt338qncogambjyFC1rDGFjZCF3l
+      - TOGETHER_ENHANCEMENT=TRUE
+      - MASA_ENHANCEMENT=TRUE
     volumes:
       - ./logs:/app/logs
     healthcheck:
@@ -29,44 +28,9 @@ services:
     networks:
       - mcp-network
 
-  playwright-mcp:
-    build:
-      context: ./playwright-mcp
-      dockerfile: Dockerfile
-      args:
-        - NODE_ENV=production
-    container_name: playwright-mcp
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      - PORT=3000
-      - DOCKER_CONTAINER=true
-      - SCRAPE_TIMEOUT=20000
-      - BROWSER_TIMEOUT=60000
-      # Pass API keys to the Playwright service
-      - MASA_API_KEY=${MASA_API_KEY:-}
-      - TOGETHER_API_KEY=${TOGETHER_API_KEY:-}
-    volumes:
-      - ./playwright-logs:/app/logs
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    networks:
-      - mcp-network
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-          cpus: '2'
-
 networks:
   mcp-network:
     driver: bridge
 
 volumes:
-  masa-mcp-logs:
-  playwright-mcp-logs: 
+  logs:

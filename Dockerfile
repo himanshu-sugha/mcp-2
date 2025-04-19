@@ -30,3 +30,4 @@ RUN echo '#!/bin/bash' > /app/start.sh && \
 
 # Start the server
 CMD ["/app/start.sh"]
+
